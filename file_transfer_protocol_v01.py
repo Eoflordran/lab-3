@@ -46,7 +46,7 @@ FILE_SIZE_FIELD_LEN  = 8 # 8 byte file size field.
 # be a 1-byte integer. For now, we only define the "GET" command,
 # which tells the server to send a file.
 
-CMD = { "GET" : 2 }
+CMD = { "GET" : 1 , "PUT" : 2, "LIST" : 3}
 
 MSG_ENCODING = "utf-8"
     
@@ -58,7 +58,7 @@ class Server:
 
     HOSTNAME = "127.0.0.1"
 
-    PORT = 50000
+    PORT = 30001
     RECV_SIZE = 1024
     BACKLOG = 5
 
@@ -155,7 +155,13 @@ class Client:
     def __init__(self):
         self.get_socket()
         self.connect_to_server()
-        self.get_file()
+        x, filename = self.command_handle()
+        if(x == 1):
+            self.get_file(filename)
+        if(x == 2):
+            self.put_file(filename)
+        if(x == 3):
+            self.get_fileList()
 
     def get_socket(self):
         try:
@@ -177,18 +183,53 @@ class Client:
             self.socket.close()
             exit()
         return(bytes)
+    
+    def command_handle(self):
+
+        while(1):
+            command = input("Command:")
             
-    def get_file(self):
+            try:
+                command = CMD[command.upper()]
+                if(command == 3):
+                    return command, ""
+                else:
+                    filename = input("filename:")
+                    return command,filename
+            except:
+                pass
+    def put_file(self, filename):
+        # Create the packet GET field.
+        get_field = CMD["PUT"].to_bytes(CMD_FIELD_LEN, byteorder='big')
+        # Create the packet
+        pkt = get_field + filename.encode(MSG_ENCODING)
+        print(pkt)
+        # Send the request packet to the server
+        self.socket.sendall(pkt)
+
+
+    def get_fileList(self):
+        # Create the packet GET field.
+        get_field = CMD["LIST"].to_bytes(CMD_FIELD_LEN, byteorder='big')
+        pkt = get_field
+        print(pkt)
+
+        # Send the request packet to the server
+        self.socket.sendall(pkt)
+
+        
+    def get_file(self, filename):
 
         # Create the packet GET field.
+        
         get_field = CMD["GET"].to_bytes(CMD_FIELD_LEN, byteorder='big')
 
         # Create the packet filename field.
-        filename_field = Server.REMOTE_FILE_NAME.encode(MSG_ENCODING)
+        filename_field = filename.encode(MSG_ENCODING)
 
         # Create the packet.
         pkt = get_field + filename_field
-
+        print(pkt)
         # Send the request packet to the server.
         self.socket.sendall(pkt)
 

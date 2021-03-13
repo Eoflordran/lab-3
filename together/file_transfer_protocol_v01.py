@@ -46,7 +46,7 @@ FILE_SIZE_FIELD_LEN  = 8 # 8 byte file size field.
 # be a 1-byte integer. For now, we only define the "GET" command,
 # which tells the server to send a file.
 
-CMD = { "GET" : 2 }
+CMD = { "GET" : 2 , "PUT" : 3, "LIST" : 4}
 
 MSG_ENCODING = "utf-8"
     
@@ -151,6 +151,7 @@ class Client:
     LOCAL_FILE_NAME = "localfile.txt"
 
     def __init__(self):
+        print("whatupdog")
         self.get_socket()
         self.connect_to_server()
         self.get_file()
