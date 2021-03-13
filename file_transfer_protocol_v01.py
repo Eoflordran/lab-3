@@ -66,6 +66,7 @@ class Server:
 
     # This is the file that the client will request using a GET.
     REMOTE_FILE_NAME = "remotefile.txt"
+    # REMOTE_FILE_NAME = "bee.jpg"
 
     def __init__(self):
         self.create_listen_socket()
@@ -149,6 +150,7 @@ class Client:
     # Define the local file name where the downloaded file will be
     # saved.
     LOCAL_FILE_NAME = "localfile.txt"
+    # LOCAL_FILE_NAME = "bee1.jpg"
 
     def __init__(self):
         self.get_socket()
