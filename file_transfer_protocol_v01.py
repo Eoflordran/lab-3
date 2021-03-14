@@ -59,6 +59,9 @@ class Server:
     HOSTNAME = "127.0.0.1"
 
     PORT = 30001
+    SERVICE_SCAN_PORT = 30000
+    SDP_MSG = "Aayush, Eric, William, and Adam's Sharing Service"
+    SDP_MSG_ENCODED = SDP_MSG.encode(MSG_ENCODING)
     RECV_SIZE = 1024
     BACKLOG = 5
 
@@ -145,7 +148,7 @@ class Server:
 
 class Client:
 
-    RECV_SIZE = 10
+    RECV_SIZE = 1024
     
     # Define the local file name where the downloaded file will be
     # saved.
@@ -153,10 +156,15 @@ class Client:
     # LOCAL_FILE_NAME = "bee1.jpg"
 
     def __init__(self):
+        
+
         self.client_CMD = { "SCAN" : 0, "GET" : 1 , "PUT" : 2, "RLIST" : 3, "LLIST" : 4, "CONNECT" : 5, "BYE" : 6}
         self.get_socket() 
-        self.connect_to_server() # this command will be commented out and 
+        #self.connect_to_server() # this command will be commented out and 
         #                        # replaced in the command handle function
+
+        self.command_handle()
+        """
         x, filename = self.command_handle()
         if(x == 0):
             self.scan_command()
@@ -171,8 +179,26 @@ class Client:
         if(x == 5):
             pass # connect function is still vanilla function
         if(x == 6):
-            self.bye_to_server()
+            self.bye_to_server()"""
 
+    def create_udp_socket(self):
+        try: 
+            self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            print("UDP Socket Created")
+        except Exception as msg:
+            print(msg)
+            exit()
+    
+    def discover_service(self):
+        print("Attempting to Discover Service")
+        try:
+            self.udp_socket.sendto(b"SERVICE DISCOVERY", (Server.HOSTNAME, Server.SERVICE_SCAN_PORT))
+            msg_bytes, address_port = self.udp_socket.recvfrom(Client.RECV_SIZE)
+            print("Received: ", msg_bytes.decode('utf-8'), " IP/Port:", address_port)
+        except Exception as msg:
+            print(msg)
+            exit()
+    
     def get_socket(self):
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -186,26 +212,71 @@ class Client:
             self.socket.close()
             exit()
         return(bytes)
-    
+    def split_up_string(self, x):
+        hold = []
+        hold_string = ""
+        flag = 0
+        for i in range(0,len(x)):
+            
+            if(flag == 1 or i == len(x)-1):
+                if(x[i] != " " and i == len(x)-1):
+                    hold_string += x[i]
+                hold.append(hold_string)
+                hold_string = ""
+                flag = 0
+                
+            if(flag == 0):
+                if(x[i] != " "):
+                    hold_string += x[i]
+                else:
+                    flag = 1
+        return hold
     def command_handle(self):
         # This will be an infinite loop that will handle initialization to 
         # connection etc
         while(1):
-            command = input("Command:")
             
+            IP = ""
+            port = ""
+            filename = ""
+            command = input("Command:")
+            command_words = self.split_up_string(command)
+            print(command_words)
             try:
-                command = self.client_CMD[command.upper()]
+                x = self.client_CMD[command_words[0].upper()]
+            except:
+                x = 10000 #arbitrary number not on the commands list
+                """
                 if(command == 0 or command == 3 or command == 4 or command == 6):
                     return command, ""
                 else:
                     filename = input("filename:")
                     return command,filename
             except:
-                pass
+                pass"""
+            if(x == 0):
+                self.scan_command()
+            if(x == 1):
+                self.get_file(filename)
+            if(x == 2):
+                self.put_file(filename)
+            if(x == 3):
+                self.get_fileList()
+            if(x == 4):
+                self.local_list()
+            if(x == 5):
+                self.connect_to_server(command_words[1], command_words[2])
+            if(x == 6):
+                self.bye_to_server()
+    
     def scan_command(self):
-        pass
-    def get_file(self, filename):
+        self.create_udp_socket()
+        self.discover_service()
+        #close udp socket
+        self.udp_socket.close()
 
+    def get_file(self, filename):
+        print("got in")
         # Create the packet GET field.
         
         get_field = self.client_CMD["GET"].to_bytes(CMD_FIELD_LEN, byteorder='big')
@@ -276,9 +347,11 @@ class Client:
             if x[i][0] != ".":
                 print(x[i])
         
-    def connect_to_server(self):
+    def connect_to_server(self, server_IP, server_port):
+        print(server_IP)
+        print(server_port)
         try:
-            self.socket.connect((Server.HOSTNAME, Server.PORT))
+            self.socket.connect((str(server_IP), int(server_port)))#((Server.HOSTNAME, Server.PORT))
         except Exception as msg:
             print(msg)
             exit()
