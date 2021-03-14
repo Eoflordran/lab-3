@@ -257,9 +257,9 @@ class Client:
             if(x == 0):
                 self.scan_command()
             if(x == 1):
-                self.get_file(filename)
+                self.get_file(command_words[1])
             if(x == 2):
-                self.put_file(filename)
+                self.put_file(command_words[1])
             if(x == 3):
                 self.get_fileList()
             if(x == 4):
