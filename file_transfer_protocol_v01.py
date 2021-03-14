@@ -49,7 +49,6 @@ FILE_SIZE_FIELD_LEN  = 8 # 8 byte file size field.
 
 CMD = { "GET" : 2 }
 
-MSG_ENCODING = "utf-8"
     
 ########################################################################
 # SERVER
@@ -71,6 +70,7 @@ class Server:
     REMOTE_FILE_NAME = "remotefile.txt"
     # REMOTE_FILE_NAME = "bee.jpg"
 
+    MSG_ENCODING = "utf-8"
     SERVICE_DISCOVER_COMMAND = "SERVICE DISCOVERY"
     SDP_MSG = "Aayush, Eric, William, and Adam's Sharing Service"
     SDP_MSG_ENCODED = SDP_MSG.encode(MSG_ENCODING)
@@ -78,8 +78,8 @@ class Server:
     def __init__(self):
         self.create_service_scan_socket()
         self.process_udp_connections_forever()
-        self.create_listen_socket()
-        self.process_connections_forever()
+        # self.create_listen_socket()
+        # self.process_connections_forever()
     
     def create_service_scan_socket(self):
         try:
@@ -198,9 +198,11 @@ class Client:
     # LOCAL_FILE_NAME = "bee1.jpg"
 
     def __init__(self):
-        self.get_socket()
-        self.connect_to_server()
-        self.get_file()
+        self.create_udp_socket()
+        self.discover_service()
+        # self.get_socket()
+        # self.connect_to_server()
+        # self.get_file()
 
     def get_socket(self):
         try:
@@ -209,16 +211,20 @@ class Client:
             print(msg)
             exit()
 
-    def get_udp_socket(self):
+    def create_udp_socket(self):
         try: 
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            print("UDP Socket Created")
         except Exception as msg:
             print(msg)
             exit()
     
-    def connect_to_server_discover(self):
+    def discover_service(self):
+        print("Attempting to Discover Service")
         try:
-            self.udp_socket.connect((Server.HOSTNAME, Server.SERVICE_SCAN_PORT))
+            self.udp_socket.sendto(b"SERVICE DISCOVERY", (Server.HOSTNAME, Server.SERVICE_SCAN_PORT))
+            msg_bytes, address_port = self.udp_socket.recvfrom(Client.RECV_SIZE)
+            print("Received: ", msg_bytes.decode('utf-8'), " Address:", address_port)
         except Exception as msg:
             print(msg)
             exit()
