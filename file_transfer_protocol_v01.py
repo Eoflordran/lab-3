@@ -20,7 +20,7 @@
 
 import socket
 import argparse
-
+import os
 ########################################################################
 
 # Define all of the packet protocol field lengths. See the
@@ -146,33 +146,36 @@ class Server:
 class Client:
 
     RECV_SIZE = 10
-
+    
     # Define the local file name where the downloaded file will be
     # saved.
     LOCAL_FILE_NAME = "localfile.txt"
     # LOCAL_FILE_NAME = "bee1.jpg"
 
     def __init__(self):
-        self.get_socket()
-        self.connect_to_server()
+        self.client_CMD = { "SCAN" : 0, "GET" : 1 , "PUT" : 2, "RLIST" : 3, "LLIST" : 4, "CONNECT" : 5, "BYE" : 6}
+        self.get_socket() 
+        self.connect_to_server() # this command will be commented out and 
+        #                        # replaced in the command handle function
         x, filename = self.command_handle()
+        if(x == 0):
+            self.scan_command()
         if(x == 1):
             self.get_file(filename)
         if(x == 2):
             self.put_file(filename)
         if(x == 3):
             self.get_fileList()
+        if(x == 4):
+            self.local_list()
+        if(x == 5):
+            pass # connect function is still vanilla function
+        if(x == 6):
+            self.bye_to_server()
 
     def get_socket(self):
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except Exception as msg:
-            print(msg)
-            exit()
-
-    def connect_to_server(self):
-        try:
-            self.socket.connect((Server.HOSTNAME, Server.PORT))
         except Exception as msg:
             print(msg)
             exit()
@@ -185,39 +188,108 @@ class Client:
         return(bytes)
     
     def command_handle(self):
-
+        # This will be an infinite loop that will handle initialization to 
+        # connection etc
         while(1):
             command = input("Command:")
             
             try:
-                command = CMD[command.upper()]
-                if(command == 3):
+                command = self.client_CMD[command.upper()]
+                if(command == 0 or command == 3 or command == 4 or command == 6):
                     return command, ""
                 else:
                     filename = input("filename:")
                     return command,filename
             except:
                 pass
+    def scan_command(self):
+        pass
+    def get_file(self, filename):
+
+        # Create the packet GET field.
+        
+        get_field = self.client_CMD["GET"].to_bytes(CMD_FIELD_LEN, byteorder='big')
+
+        # Create the packet filename field.
+        filename_field = filename.encode(MSG_ENCODING)
+
+        # Create the packet.
+        pkt = get_field + filename_field
+        print(pkt)
+        # Send the request packet to the server.
+        self.socket.sendall(pkt)
+
+        # Read the file size field.
+        file_size_bytes = self.socket_recv_size(FILE_SIZE_FIELD_LEN)
+        if len(file_size_bytes) == 0:
+               self.socket.close()
+               return
+
+        # Make sure that you interpret it in host byte order.
+        file_size = int.from_bytes(file_size_bytes, byteorder='big')
+
+        # Receive the file itself.
+        recvd_bytes_total = bytearray()
+        try:
+            # Keep doing recv until the entire file is downloaded. 
+            while len(recvd_bytes_total) < file_size:
+                recvd_bytes_total += self.socket.recv(Client.RECV_SIZE)
+
+            # Create a file using the received filename and store the
+            # data.
+            print("Received {} bytes. Creating file: {}" \
+                  .format(len(recvd_bytes_total), Client.LOCAL_FILE_NAME))
+
+            with open(Client.LOCAL_FILE_NAME, 'w') as f:
+                f.write(recvd_bytes_total.decode(MSG_ENCODING))
+        except KeyboardInterrupt:
+            print()
+            exit(1)
+        # If the socket has been closed by the server, break out
+        # and close it on this end.
+        except socket.error:
+            self.socket.close()
+    
     def put_file(self, filename):
         # Create the packet GET field.
-        get_field = CMD["PUT"].to_bytes(CMD_FIELD_LEN, byteorder='big')
+        get_field = self.client_CMD["PUT"].to_bytes(CMD_FIELD_LEN, byteorder='big')
         # Create the packet
         pkt = get_field + filename.encode(MSG_ENCODING)
         print(pkt)
         # Send the request packet to the server
         self.socket.sendall(pkt)
 
-
+    
+        
     def get_fileList(self):
         # Create the packet GET field.
-        get_field = CMD["LIST"].to_bytes(CMD_FIELD_LEN, byteorder='big')
+        get_field = self.client_CMD["RLIST"].to_bytes(CMD_FIELD_LEN, byteorder='big')
         pkt = get_field
         print(pkt)
 
         # Send the request packet to the server
         self.socket.sendall(pkt)
-
+    
+    def local_list(self):
+        x = os.listdir()
+        for i in range(0,len(x)):
+            if x[i][0] != ".":
+                print(x[i])
         
+    def connect_to_server(self):
+        try:
+            self.socket.connect((Server.HOSTNAME, Server.PORT))
+        except Exception as msg:
+            print(msg)
+            exit()
+    
+    def bye_to_server(self):
+        try:
+            self.socket.close()
+        except:
+            print("Socket doesn't exist")
+
+    """
     def get_file(self, filename):
 
         # Create the packet GET field.
@@ -262,7 +334,7 @@ class Client:
         # If the socket has been closed by the server, break out
         # and close it on this end.
         except socket.error:
-            self.socket.close()
+            self.socket.close()"""
             
 ########################################################################
 
