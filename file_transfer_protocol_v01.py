@@ -21,6 +21,7 @@
 import socket
 import argparse
 import os
+import threading
 ########################################################################
 
 # Define all of the packet protocol field lengths. See the
@@ -61,11 +62,14 @@ class Server:
     PORT = 30001
     SERVICE_SCAN_PORT = 30000
     SDP_MSG = "Aayush, Eric, William, and Adam's Sharing Service"
+    SERVICE_DISCOVER_COMMAND = "SERVICE DISCOVERY"
     SDP_MSG_ENCODED = SDP_MSG.encode(MSG_ENCODING)
+    
     RECV_SIZE = 1024
     BACKLOG = 5
 
     FILE_NOT_FOUND_MSG = "Error: Requested file is not available!"
+    MSG_ENCODING = "utf-8"
 
     # This is the file that the client will request using a GET.
     REMOTE_FILE_NAME = "remotefile.txt"
@@ -73,6 +77,11 @@ class Server:
 
     def __init__(self):
         self.create_listen_socket()
+        
+        thread_udp = threading.Thread(target = self.process_udp_connections_forever,args = [])
+        thread_udp.start()
+        print("UDP: listening on port {} ...".format(Server.SERVICE_SCAN_PORT))
+        
         self.process_connections_forever()
 
     def create_listen_socket(self):
@@ -82,15 +91,47 @@ class Server:
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((Server.HOSTNAME, Server.PORT))
             self.socket.listen(Server.BACKLOG)
+            
+            # Create an IPv4 UDP socket.
+            self.service_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+            # Get socket layer socket options.
+            self.service_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+            # Bind socket to socket address, i.e., IP address and port.
+            self.service_socket.bind( (Server.HOSTNAME, Server.SERVICE_SCAN_PORT) )
+            
             print("Listening on port {} ...".format(Server.PORT))
         except Exception as msg:
             print(msg)
             exit()
+            
+    def process_udp_connections_forever(self):
+       while True:
+            try:
+                
+                recvd_bytes, address = self.service_socket.recvfrom(Server.RECV_SIZE)
 
+                print("Received: ", recvd_bytes.decode('utf-8'), " Address:", address)
+            
+                # Decode the received bytes back into strings.
+                recvd_str = recvd_bytes.decode(Server.MSG_ENCODING)
+
+                # Check if the received packet contains a service scan
+                # command.
+                if Server.SERVICE_DISCOVER_COMMAND in recvd_str:
+                    # Send the service advertisement message back to
+                    # the client.
+                    self.service_socket.sendto(Server.SDP_MSG_ENCODED, address)
+            except KeyboardInterrupt:
+                print()
+                sys.exit(1)
+                
     def process_connections_forever(self):
         try:
             while True:
-                self.connection_handler(self.socket.accept())
+                thread_tcp = threading.Thread(target = self.connection_handler, args = (self.socket.accept(),))
+                tcp_thread.start()
         except KeyboardInterrupt:
             print()
         finally:
@@ -160,10 +201,13 @@ class Client:
 
         self.client_CMD = { "SCAN" : 0, "GET" : 1 , "PUT" : 2, "RLIST" : 3, "LLIST" : 4, "CONNECT" : 5, "BYE" : 6}
         self.get_socket() 
+        self.create_udp_socket()
+        self.discover_service()
         #self.connect_to_server() # this command will be commented out and 
         #                        # replaced in the command handle function
 
         self.command_handle()
+
         """
         x, filename = self.command_handle()
         if(x == 0):
