@@ -536,8 +536,8 @@ class Client:
         print()
         
     def connect_to_server(self, server_IP, server_port):
-        print(server_IP)
-        print(server_port)
+        #print(server_IP)
+        #print(server_port)
         try:
             self.get_socket()
             self.socket.connect((str(server_IP), int(server_port)))#((Server.HOSTNAME, Server.PORT))
