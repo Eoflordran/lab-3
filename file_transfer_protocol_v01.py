@@ -172,7 +172,7 @@ class Server:
         # client.
         
         try:
-            file = open(Server.REMOTE_DIRECTORY+filename, 'r').read()
+            file_bytes = open(Server.REMOTE_DIRECTORY+filename, 'rb').read()
         except FileNotFoundError:
             print(Server.FILE_NOT_FOUND_MSG)
             file_size_bytes = 0
@@ -182,7 +182,6 @@ class Server:
 
         # Encode the file contents into bytes, record its size and
         # generate the file size field used for transmission.
-        file_bytes = file.encode(MSG_ENCODING)
         file_size_bytes = len(file_bytes)
         file_size_field = file_size_bytes.to_bytes(FILE_SIZE_FIELD_LEN, byteorder='big')
 
@@ -244,8 +243,8 @@ class Server:
             print("Received {} bytes. Creating file: {}" \
                   .format(len(recvd_bytes_total), Server.REMOTE_DIRECTORY+filename))
 
-            with open(Server.REMOTE_DIRECTORY+filename, 'w') as f:
-                f.write(recvd_bytes_total.decode(MSG_ENCODING))
+            with open(Server.REMOTE_DIRECTORY+filename, 'wb') as f:
+                f.write(recvd_bytes_total)
         except socket.error:
             # If the client has closed the connection, close the
             # socket on this end.
@@ -433,8 +432,8 @@ class Client:
             print("Received {} bytes. Creating file: {}" \
                   .format(len(recvd_bytes_total), Client.LOCAL_DIRECTORY+filename))
 
-            with open(Client.LOCAL_DIRECTORY+filename, 'w') as f:
-                f.write(recvd_bytes_total.decode(MSG_ENCODING))
+            with open(Client.LOCAL_DIRECTORY+filename, 'wb') as f:
+                f.write(recvd_bytes_total)
         except KeyboardInterrupt:
             print()
             exit(1)
@@ -445,7 +444,7 @@ class Client:
     
     def put_file(self, filename):
         try:
-            file = open(Client.LOCAL_DIRECTORY+filename, 'r').read()
+            file_bytes = open(Client.LOCAL_DIRECTORY+filename, 'rb').read()
         except FileNotFoundError:
             print("File not found.")
             return
@@ -469,7 +468,6 @@ class Client:
 
         # Encode the file contents into bytes, record its size and
         # generate the file size field used for transmission.
-        file_bytes = file.encode(MSG_ENCODING)
         file_size_bytes = len(file_bytes)
         file_size_field = file_size_bytes.to_bytes(FILE_SIZE_FIELD_LEN, byteorder='big')
 
